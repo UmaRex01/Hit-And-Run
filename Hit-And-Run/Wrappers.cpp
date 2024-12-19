@@ -186,11 +186,11 @@ static void DummyVirtualProtect()
 	free(lol);
 }
 
-// Dummy function for CreateRemoteThreadEx redirection
-static void DummyCreateRemoteThreadEx()
+// Dummy function for CreateRemoteThread redirection
+static void DummyCreateRemoteThread()
 {
 	void* lol = malloc(1);
-	CreateRemoteThreadEx(GetCurrentProcess(), NULL, 0, (LPTHREAD_START_ROUTINE)lol, NULL, 0, NULL, NULL);
+	CreateRemoteThread(GetCurrentProcess(), NULL, 0, (LPTHREAD_START_ROUTINE)lol, NULL, 0, NULL);
 	free(lol);
 }
 
@@ -224,7 +224,7 @@ NTSTATUS CallNtProtectVirtualMemory(HANDLE ProcessHandle, PVOID* BaseAddress, PS
 NTSTATUS CallCreateRemoteThread(PHANDLE ThreadHandle, ACCESS_MASK DesiredAccess, POBJECT_ATTRIBUTES ObjectAttributes, HANDLE ProcessHandle, PVOID StartRoutine,
 	PVOID Argument, ULONG CreateFlags, SIZE_T ZeroBits, SIZE_T StackSize, SIZE_T MaximumStackSize, PPS_ATTRIBUTE_LIST AttributeList)
 {
-	REDIRECT_TO_ADDR = &DummyCreateRemoteThreadEx;
+	REDIRECT_TO_ADDR = &DummyCreateRemoteThread;
 	STACKS_ARGS_NUMBER = 7;
 	if (!PrepareAndSetBreakpoint(ZwCreateThreadExHash))
 		return NULL;
