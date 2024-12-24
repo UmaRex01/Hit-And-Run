@@ -13,4 +13,4 @@ Hit-And-Run is a proof-of-concept implementation of a syscall technique for evad
 - Repeated exceptions and predictable behavior patterns could be flagged by behavior-based detection systems.
   
 ## Learn More
-For detailed implementation steps and technical insights, refer to the blog post: *coming soon*
+For detailed implementation steps and technical insights, refer to the blog post: [Hit-And-Run: A Novel Syscall Method](https://medium.com/bugbountywriteup/hit-and-run-a-novel-syscall-method-for-bypassing-edrs-via-veh-and-call-stack-theft-e2f399d71eeb)
