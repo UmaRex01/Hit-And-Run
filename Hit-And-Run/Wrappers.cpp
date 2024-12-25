@@ -66,32 +66,32 @@ void ClearBreakpoint(CONTEXT* ctx, int index)
 	ctx->EFlags = 0;
 }
 
-static LONG WINAPI NtdllExceptionHandler(PEXCEPTION_POINTERS exception)
+extern "C" EXCEPTION_DISPOSITION __cdecl __C_specific_handler(struct _EXCEPTION_RECORD* ExceptionRecord, void* Frame, struct _CONTEXT* ContextRecord, struct _DISPATCHER_CONTEXT* Dispatch)
 {
 	// FIRST HIT - at EXCP_ADDR (ntdll function first instruction)
-	if (exception->ExceptionRecord->ExceptionCode == EXCEPTION_SINGLE_STEP &&
-		exception->ExceptionRecord->ExceptionAddress == EXCP_ADDR)
+	if (ExceptionRecord->ExceptionCode == EXCEPTION_SINGLE_STEP &&
+		ExceptionRecord->ExceptionAddress == EXCP_ADDR)
 	{
-		ClearBreakpoint(exception->ContextRecord, 0);
+		ClearBreakpoint(ContextRecord, 0);
 
 		// Save context for later restoration
 		SAVED_CONTEXT = (PCONTEXT)HeapAlloc(GetProcessHeap(), 0, sizeof(CONTEXT));
-		memcpy_s(SAVED_CONTEXT, sizeof(CONTEXT), exception->ContextRecord, sizeof(CONTEXT));
+		memcpy_s(SAVED_CONTEXT, sizeof(CONTEXT), ContextRecord, sizeof(CONTEXT));
 
 		// Redirect execution to the custom function
-		exception->ContextRecord->Rip = (DWORD64)REDIRECT_TO_ADDR;
-		return EXCEPTION_CONTINUE_EXECUTION;
+		ContextRecord->Rip = (DWORD64)REDIRECT_TO_ADDR;
+		return ExceptionContinueExecution;
 	}
 
 	// SECOND HIT - at SYSC_ADDR (syscall address)
-	if (exception->ExceptionRecord->ExceptionCode == EXCEPTION_SINGLE_STEP &&
-		exception->ExceptionRecord->ExceptionAddress == SYSC_ADDR)
+	if (ExceptionRecord->ExceptionCode == EXCEPTION_SINGLE_STEP &&
+		ExceptionRecord->ExceptionAddress == SYSC_ADDR)
 	{
 		// Restore original stack arguments
-		exception->ContextRecord->Rcx = SAVED_CONTEXT->Rcx;
-		exception->ContextRecord->Rdx = SAVED_CONTEXT->Rdx;
-		exception->ContextRecord->R8 = SAVED_CONTEXT->R8;
-		exception->ContextRecord->R9 = SAVED_CONTEXT->R9;
+		ContextRecord->Rcx = SAVED_CONTEXT->Rcx;
+		ContextRecord->Rdx = SAVED_CONTEXT->Rdx;
+		ContextRecord->R8 = SAVED_CONTEXT->R8;
+		ContextRecord->R9 = SAVED_CONTEXT->R9;
 
 		//printf("\n\n --debug begin-- \n\n");
 		DWORD k = 0x1;
@@ -101,22 +101,22 @@ static LONG WINAPI NtdllExceptionHandler(PEXCEPTION_POINTERS exception)
 			DWORD offset = 0x8 * (0x4 + k);
 			//printf("address on stack: %p - %p\n", exception->ContextRecord->Rsp + offset, SAVED_CONTEXT->Rsp + offset);
 			//printf("values: %p - %p\n", *(ULONG64*)(exception->ContextRecord->Rsp + offset), *(ULONG64*)(SAVED_CONTEXT->Rsp + offset));
-			*(ULONG64*)(exception->ContextRecord->Rsp + offset) = *(ULONG64*)(SAVED_CONTEXT->Rsp + offset);
+			*(ULONG64*)(ContextRecord->Rsp + offset) = *(ULONG64*)(SAVED_CONTEXT->Rsp + offset);
 			//printf("new values: %p - %p\n\n", *(ULONG64*)(exception->ContextRecord->Rsp + offset), *(ULONG64*)(SAVED_CONTEXT->Rsp + offset));
 			STACKS_ARGS_NUMBER--;
 			k += 0x1;
 		}
 		//printf("\n\n --debug end-- \n\n");
 
-		exception->ContextRecord->R10 = exception->ContextRecord->Rcx;
+		ContextRecord->R10 = ContextRecord->Rcx;
 
-		ClearBreakpoint(exception->ContextRecord, 1);
+		ClearBreakpoint(ContextRecord, 1);
 		HeapFree(GetProcessHeap(), HEAP_ZERO_MEMORY, SAVED_CONTEXT);
 
-		return EXCEPTION_CONTINUE_EXECUTION;
+		return ExceptionContinueExecution;
 	}
 
-	return EXCEPTION_CONTINUE_SEARCH;
+	return ExceptionContinueSearch;
 }
 
 static BOOL PrepareAndSetBreakpoint(DWORD functionHash)
@@ -156,9 +156,6 @@ BOOL Init()
 {
 	if (!SW3_PopulateSyscallList())
 		return FALSE;
-
-	// Set up the vectored exception handler for breakpoints
-	AddVectoredExceptionHandler(1, NtdllExceptionHandler);
 
 	return TRUE;
 }
