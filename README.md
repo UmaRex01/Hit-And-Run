@@ -5,11 +5,13 @@ Hit-And-Run is a proof-of-concept implementation of a syscall technique for evad
 
 ## Key Features
 - **Call Stack Theft**: Mimics standard Windows API behavior to create a coherent call stack, avoiding detection.
-- **Vectored Exception Handling (VEH)**: Dynamically handles exceptions to manipulate syscall execution flow.
+- <s>Vectored Exception Handling (VEH): Dynamically handles exceptions to manipulate syscall execution flow.</s>
+  - **[PATCH 1] Built-In Exception Handling**: Dynamically handles exceptions to manipulate syscall execution flow.
 - **Hardware Breakpoints**: Utilized to intercept and redirect execution without modifying code, reducing detection risk.
   
 ## Limitations
-- The setup phase (e.g., AddVectoredExceptionHandler) and the use of debug registers (e.g., Dr0, Dr7) may trigger EDR alerts.
+- <s>The setup phase (e.g., AddVectoredExceptionHandler) and</s> the use of debug registers (e.g., Dr0, Dr7) may trigger EDR alerts.
+  - Patch 1 replaced VEH with built-in exception handling, effectively removing the IOC associated with the use of API `AddVectoredExceptionHandler`.
 - Repeated exceptions and predictable behavior patterns could be flagged by behavior-based detection systems.
   
 ## Learn More
