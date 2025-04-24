@@ -1,18 +1,17 @@
 # HIT-AND-RUN
-Hit-And-Run is a proof-of-concept implementation of a syscall technique for evading EDRs systems using a novel combination of call stack theft and vectored exception handling (VEH). This technique executes syscalls with attacker-defined parameters while maintaining a legitimate-looking call stack, effectively evading both inline hooking and call stack analysis mechanisms.
+This repository is a proof-of-concept for Hit-And-Run, a technique for executing syscalls using debug registers and the exception handler while maintaining a legitimate-looking call stack. The main purpose is to attempt to bypass both EDR's inline hooking and call stack analysis mechanisms.
 
 ![image](https://github.com/user-attachments/assets/28706f04-ac41-4ecd-b60d-b9a3cda57277)
 
-## Key Features
-- **Call Stack Theft**: Mimics standard Windows API behavior to create a coherent call stack, avoiding detection.
-- <s>Vectored Exception Handling (VEH): Dynamically handles exceptions to manipulate syscall execution flow.</s>
-  - **[PATCH 1] Built-In Exception Handling**: Dynamically handles exceptions to manipulate syscall execution flow.
-- **Hardware Breakpoints**: Utilized to intercept and redirect execution without modifying code, reducing detection risk.
-  
-## Limitations
-- <s>The setup phase (e.g., AddVectoredExceptionHandler) and</s> the use of debug registers (e.g., Dr0, Dr7) may trigger EDR alerts.
-  - Patch 1 replaced VEH with built-in exception handling, effectively removing the IOC associated with the use of API `AddVectoredExceptionHandler`.
-- Repeated exceptions and predictable behavior patterns could be flagged by behavior-based detection systems.
-  
-## Learn More
-For detailed implementation steps and technical insights, refer to the blog post: [Hit-And-Run: A Novel Syscall Method](https://medium.com/bugbountywriteup/hit-and-run-a-novel-syscall-method-for-bypassing-edrs-via-veh-and-call-stack-theft-e2f399d71eeb)
+To learn more about the technique, here is my blog post about it: [Hit-And-Run: A Novel Syscall Method](https://medium.com/bugbountywriteup/hit-and-run-a-novel-syscall-method-for-bypassing-edrs-via-veh-and-call-stack-theft-e2f399d71eeb)
+
+## UPGRADES
+With time, some improvements have been made to the original technique presented in the blog post:
+- Use of the built-in exception handler instead of VEH (https://github.com/UmaRex01/Hit-And-Run/pull/1).
+- Use thread variables instead of static variables to make the technique thread-safe.
+
+## DEVELOPMENT
+For those interested in experimenting with this technique on other APIs, the steps are as follows: 
+- Add the API definition to Native.h
+- Add the API wrapper definition to HitAndRun.h
+- Implement the wrapper in HitAndRun.c, building on the existing wrappers. A wrapper is nothing more than a function that prepares the execution context, sets debug registers, and then calls the API.
